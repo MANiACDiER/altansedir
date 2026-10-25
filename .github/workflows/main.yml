@@ -1,16 +1,213 @@
-name: Altan Sedir
+name: Deploy site
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      replace_wordpress:
+        description: 'Hedefte WordPress ya da başka dosyalar varsa silip yerine bu siteyi koy (önce tam yedek alın!)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-altansedir
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PORT: '22'
+      # cPanel → Domains → altansedir.com.tr → Document Root (ev dizinine göre)
+      TARGET_DIR: altansedir.com.tr
+      # Bu siteyi tanımak için hedefe bırakılan işaret dosyası
+      MARKER: .altansedir-deploy
+      REPLACE_WORDPRESS: ${{ github.event.inputs.replace_wordpress == 'true' }}
+    defaults:
+      run:
+        shell: bash
+
     steps:
       - uses: actions/checkout@v4
-      - uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          server-dir: ./
+
+      - name: Gizli bilgileri kontrol et
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          missing=""
+          for n in FTP_SERVER FTP_USERNAME SSH_PRIVATE_KEY; do
+            [ -n "${!n}" ] || missing="$missing $n"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Eksik gizli bilgi:$missing — Settings → Secrets and variables → Actions → Secrets → Repository secrets bölümüne ekleyin (Variables ya da Environment secrets değil)."
+            exit 1
+          fi
+          case "$TARGET_DIR" in
+            ''|.|./|/*|*..*|public_html|public_html/)
+              echo "::error::TARGET_DIR güvenli değil: '$TARGET_DIR'. Sitenin kendi klasörü olmalı."
+              exit 1 ;;
+          esac
+
+      - name: Araçları kur
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp dnsutils >/dev/null
+
+      - name: SSH anahtarını hazırla
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if ! grep -q 'PRIVATE KEY-----' ~/.ssh/deploy_key; then
+            echo "::error::SSH_PRIVATE_KEY bir SSH anahtarı gibi görünmüyor. '-----BEGIN … PRIVATE KEY-----' ile başlayan ÖZEL anahtarı yapıştırın (ssh-ed25519/ssh-rsa ile başlayan genel anahtarı değil)."
+            exit 1
+          fi
+          if ! ssh-keygen -y -P '' -f ~/.ssh/deploy_key >/dev/null 2>&1; then
+            echo "::error::SSH_PRIVATE_KEY okunamadı. Anahtar şifreli (passphrase'li) olabilir ya da eksik kopyalanmış. Şifresiz yeni bir anahtar üretin."
+            exit 1
+          fi
+
+      - name: Sunucuya bağlan
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+        run: |
+          host="$(printf '%s' "$FTP_SERVER" | sed -E 's#^[a-z]+://##; s#[/:].*$##' | tr -d '[:space:]')"
+          ip=""
+          if [[ "$host" =~ ^[0-9.]+$ ]]; then ip="$host"; fi
+          for i in 1 2 3; do
+            [ -n "$ip" ] && break
+            ip="$(getent ahostsv4 "$host" | awk 'NR==1{print $1}')" || true
+            [ -n "$ip" ] || sleep 5
+          done
+          for ns in 1.1.1.1 8.8.8.8; do
+            [ -n "$ip" ] && break
+            ip="$(dig +short +time=5 A "$host" @"$ns" | grep -E '^[0-9.]+$' | head -1)" || true
+          done
+          if [ -z "$ip" ]; then
+            echo "::error::FTP_SERVER adresi DNS'te bulunamadı: '$host'. Değer doğruysa Actions → Deploy site → Run workflow ile tekrar deneyin."
+            exit 1
+          fi
+          echo "Sunucu: $host ($ip), port $PORT"
+
+          if ! ssh-keyscan -p "$PORT" -T 20 "$ip" > ~/.ssh/known_hosts 2>/dev/null || [ ! -s ~/.ssh/known_hosts ]; then
+            echo "::error::Sunucunun port $PORT yanıt vermedi. Hosting yurt dışı bağlantıyı engelliyor olabilir; hosting desteğine sorun."
+            exit 1
+          fi
+
+          if ! out="$(echo pwd | sftp -i ~/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes \
+                -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -o StrictHostKeyChecking=yes \
+                -P "$PORT" -b - "$FTP_USERNAME@$ip" 2>&1)"; then
+            echo "$out"
+            if grep -q 'Permission denied' <<<"$out"; then
+              echo "::error::Permission denied: anahtar cPanel'de yetkilendirilmemiş (SSH Access → Manage SSH Keys → Public Keys → Manage → Authorize) ya da SSH_PRIVATE_KEY başka bir anahtar."
+            else
+              echo "::error::SFTP bağlantısı kurulamadı (yukarıdaki çıktıya bakın)."
+            fi
+            exit 1
+          fi
+
+          # lftp oturumunun ortak başlığı
+          cat > ~/lftp_head <<EOF
+          set cmd:fail-exit yes
+          set net:max-retries 2
+          set net:reconnect-interval-base 5
+          set net:timeout 30
+          set sftp:connect-program "ssh -a -x -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes -o BatchMode=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts -o StrictHostKeyChecking=yes"
+          open -u "$FTP_USERNAME," -p $PORT sftp://$ip
+          EOF
+
+      - name: Yüklenecek dosyaları hazırla
+        run: |
+          mkdir -p "$RUNNER_TEMP/site"
+          tar -cf - --exclude='./.git*' --exclude='*.md' --exclude='*.zip' . | tar -xf - -C "$RUNNER_TEMP/site"
+          echo "$GITHUB_SHA $(date -u +%FT%TZ)" > "$RUNNER_TEMP/site/$MARKER"
+          [ -f "$RUNNER_TEMP/site/index.html" ] || { echo "::error::index.html bulunamadı."; exit 1; }
+          find "$RUNNER_TEMP/site" -type f | wc -l | xargs echo "Yüklenecek dosya sayısı:"
+
+      - name: Hedef klasörü kontrol et (salt okunur)
+        run: |
+          lftp_run() { { cat ~/lftp_head; cat; echo bye; } > "$RUNNER_TEMP/cmd.lftp"; lftp -f "$RUNNER_TEMP/cmd.lftp"; }
+
+          if ! lftp_run > "$RUNNER_TEMP/listing.txt" 2>"$RUNNER_TEMP/listing.err" <<EOF
+          cls -1aB --classify "$TARGET_DIR/"
+          EOF
+          then
+            cat "$RUNNER_TEMP/listing.err"
+            echo "::error::Hedef klasör okunamadı: '$TARGET_DIR'. cPanel → Domains sayfasındaki Document Root ile aynı mı?"
+            exit 1
+          fi
+          sed -i -E '/^\.\.?\/?$/d' "$RUNNER_TEMP/listing.txt"
+          echo "----- $TARGET_DIR içeriği -----"
+          cat "$RUNNER_TEMP/listing.txt"
+          echo "-------------------------------"
+
+          # Hesabın ana dizini gibi görünüyorsa dur
+          if grep -qxE '(public_html|mail|etc|\.cpanel|ssl|logs|tmp|\.trash)/?' "$RUNNER_TEMP/listing.txt"; then
+            echo "::error::'$TARGET_DIR' hesabın ana dizini gibi görünüyor (public_html, mail, etc… var). Hiçbir şey yapılmadı."
+            exit 1
+          fi
+
+          # Korunan ve yok sayılan dosyalar dışında ne var?
+          others="$(grep -vxE '(\.well-known|cgi-bin|[^/]+\.[^/]+)/|error_log|php\.ini|\.user\.ini|\.ftpquota|google[^/]*\.html' "$RUNNER_TEMP/listing.txt" || true)"
+          state=empty
+          if grep -qx 'wp-config.php' "$RUNNER_TEMP/listing.txt"; then
+            state=wordpress
+          elif grep -qxF "$MARKER" "$RUNNER_TEMP/listing.txt"; then
+            state=site
+          elif [ -n "$others" ]; then
+            state=unknown
+          fi
+          echo "Klasör durumu: $state"
+          echo "STATE=$state" >> "$GITHUB_ENV"
+
+      - name: Deneme (dry-run)
+        run: |
+          lftp_run() { { cat ~/lftp_head; cat; echo bye; } > "$RUNNER_TEMP/cmd.lftp"; lftp -f "$RUNNER_TEMP/cmd.lftp"; }
+          # Bu kalıplar sunucuda hiç silinmez ve üzerine yazılmaz.
+          # Son kalıp adında nokta olan klasörleri (başka sitelerin klasörleri) korur.
+          echo "-x ^\.well-known/ -x ^cgi-bin/ -x ^error_log\$ -x ^php\.ini\$ -x ^\.user\.ini\$ -x ^\.ftpquota\$ -x ^google[^/]*\.html\$ -x ^[^/]+\.[^/]+/" > ~/mirror_excludes
+
+          lftp_run > "$RUNNER_TEMP/dryrun.txt" <<EOF
+          mirror -R --delete --dry-run --no-perms $(cat ~/mirror_excludes) "$RUNNER_TEMP/site/" "$TARGET_DIR/"
+          EOF
+          grep -E '^(rm|rmdir) ' "$RUNNER_TEMP/dryrun.txt" | sed -E 's#sftp://[^/]*/##' > "$RUNNER_TEMP/deletes.txt" || true
+
+          if [ -s "$RUNNER_TEMP/deletes.txt" ]; then
+            echo "----- Silinecekler -----"
+            cat "$RUNNER_TEMP/deletes.txt"
+            echo "------------------------"
+          else
+            echo "Silinecek dosya yok."
+          fi
+
+          # Başka bir sitenin klasöründen bir şey silinecek gibi görünüyorsa dur
+          if grep -E "$TARGET_DIR/[^/]+\.[^/]+/" "$RUNNER_TEMP/deletes.txt" | grep -q .; then
+            echo "::error::Başka bir sitenin klasöründen dosya silinecek gibi görünüyor. Hiçbir şey yapılmadı."
+            exit 1
+          fi
+
+          if [ "$STATE" = wordpress ] && [ "$REPLACE_WORDPRESS" != true ]; then
+            echo "::error::Hedef klasörde WordPress var. Hiçbir şey silinmedi. Yukarıda 'Silinecekler' listesine bakın. Tam yedek (dosyalar + veritabanı) aldıktan sonra Actions → Deploy site → Run workflow → replace_wordpress işaretleyip çalıştırın."
+            exit 1
+          fi
+          if [ "$STATE" = unknown ] && [ "$REPLACE_WORDPRESS" != true ]; then
+            echo "::error::Hedef klasörde bu siteye ait olmayan dosyalar var (yanlış klasör olabilir). Hiçbir şey silinmedi. Klasörü cPanel → File Manager'da kontrol edin; silinebilirse Run workflow → replace_wordpress işaretleyip çalıştırın."
+            exit 1
+          fi
+
+      - name: Yükle
+        run: |
+          lftp_run() { { cat ~/lftp_head; cat; echo bye; } > "$RUNNER_TEMP/cmd.lftp"; lftp -f "$RUNNER_TEMP/cmd.lftp"; }
+          # Önce eksik/değişen dosyalar yüklenir, artık dosyalar en son silinir.
+          lftp_run <<EOF
+          mirror -R --no-perms --parallel=4 --verbose=1 $(cat ~/mirror_excludes) "$RUNNER_TEMP/site/" "$TARGET_DIR/"
+          mirror -R --no-perms --delete --only-missing --verbose=1 $(cat ~/mirror_excludes) "$RUNNER_TEMP/site/" "$TARGET_DIR/"
+          EOF
+          echo "::notice::Site yüklendi: $TARGET_DIR (https://altansedir.com.tr)"
