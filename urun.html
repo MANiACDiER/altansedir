@@ -1,0 +1,40 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ürün Detayı — Altansedir</title><meta name="description" content="Konfigüratör ile ölçü, renk, sünger ve kumaşı seçin.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css"></head><body><div id="hdr"></div>
+<section style="padding-top:40px"><div class="wrap"><div class="crumbs"><a href="index.html">Ana Sayfa</a> / <a href="sedir-modelleri.html">Sedir Modelleri</a> / <span id="bc"></span></div>
+<div class="detail"><div class="gallery"><div class="main" id="gmain"></div><div class="thumbs" id="gth"></div></div>
+<div><h1 style="font-size:clamp(36px,5vw,56px)" id="pn"></h1><p class="note" style="margin:8px 0">Siparişe özel üretim · Ölçüye göre hazırlanır</p><p style="color:var(--mut)" id="pd"></p>
+<div class="cfg" style="margin-top:22px"><div id="cfg"></div><div class="price" id="price"></div><p class="note">Özel ölçüde fiyat tahminidir; keşif ve çizim sonrası netleşir.</p>
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px"><button class="btn fill" id="add">Sepete Ekle</button><button class="btn wa" id="waq">WhatsApp'tan Fiyat Al</button></div></div></div></div>
+
+<div class="tabs"><button class="on" data-t="t1">Teknik Özellikler</button><button data-t="t2">Bakım</button><button data-t="t3">Kargo & İade</button><button data-t="t4">Değerlendirmeler</button></div>
+<div><div class="pane on" id="t1"><table id="spec"></table></div>
+<div class="pane" id="t2"><p>Metal profil: nemli bezle silin, çizik oluşursa aynı renk dokunuş boyası kullanın. Kumaş: su geçirmez kumaşlar sabunlu su ile silinir; sert kimyasal kullanmayın. Kış aylarında yağmurluk kılıfı önerilir.</p></div>
+<div class="pane" id="t3"><p>Türkiye geneli demonte kargo. Özel ölçü ürünlerde cayma hakkı yoktur; üretim hatalarında ücretsiz değişim yapılır. Standart ölçü ürünlerde 14 gün iade.</p></div>
+<div class="pane" id="t4"><p>Bu model için henüz değerlendirme yok. Satın aldıysanız fotoğrafınızı ve yorumunuzu <a href="#" onclick="wa('Merhaba, ürün yorumu ve fotoğrafı göndermek istiyorum.');return false" style="text-decoration:underline">WhatsApp'tan</a> iletebilirsiniz.</p></div></div>
+<h2 style="margin:70px 0 24px;font-size:30px">Benzer Ürünler</h2><div class="grid g4" id="sim"></div></div></section>
+<div class="lb" id="lb"><button aria-label="Kapat">×</button><img id="lbimg" alt=""></div><div id="ftr"></div><script src="assets/app.js"></script>
+<script src="assets/cfg.js"></script><script>
+document.addEventListener('DOMContentLoaded',()=>{
+ const id=new URLSearchParams(location.search).get('id');const p=PRODUCTS.find(x=>x.id===id)||PRODUCTS[0];
+ document.title=p.name+' — Altansedir';$('#bc').textContent=p.name;$('#pn').textContent=p.name;$('#pd').textContent=p.desc;
+ let cur,idx=0;const photos=galleryFor(p);
+ function gal(){
+  const S=cur.S,fc=FRAMES[S.frame],fb=S.fab;
+  const sel=`<div class="selbadge"><span>Seçiminiz</span><i style="background:${fc.c}" title="İskelet: ${fc.n}"></i><i style="background:${fb[2]}" title="Kumaş: ${fb[0]} ${fb[1]}"></i><span>${S.w} cm · ${S.dens} DNS</span></div>`;
+  const g=$('#gmain');
+  if(idx==='sel'){g.style.cursor='default';g.innerHTML=`<div class="svgw">${cur.svg}</div><div class="selbadge"><span>Seçiminizin önizlemesi (çizim)</span></div>`}
+  else{g.style.cursor='zoom-in';g.innerHTML=`<img src="assets/img/${photos[idx]}" alt="${p.name}">`+sel}
+  $('#gth').innerHTML=photos.map((f,i)=>`<button class="${i===idx?'on':''}" data-v="${i}" style="background-image:url(assets/img/${f})" aria-label="Fotoğraf ${i+1}"></button>`).join('')+`<button class="${idx==='sel'?'on':''}" data-v="sel" style="background:var(--bg2)"><span style="position:static;background:none;color:var(--brown);font-size:10px;display:block;padding:14px 2px">Seçimim</span></button>`;}
+ $('#gth').addEventListener('click',e=>{const b=e.target.closest('button');if(b){idx=b.dataset.v==='sel'?'sel':+b.dataset.v;gal()}});
+ $('#gmain').addEventListener('click',()=>{if(idx!=='sel'){$('#lbimg').src='assets/img/'+photos[idx];$('#lb').classList.add('open')}});
+ $('#lb').onclick=()=>$('#lb').classList.remove('open');
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')$('#lb').classList.remove('open')});
+ mountCfg($('#cfg'),p,r=>{cur=r;$('#price').textContent=money(r.price);gal()});
+ $('#add').onclick=()=>{addToCart({key:p.id+'|'+cur.summary,id:p.id,name:p.name,summary:cur.summary,price:cur.price,photo:photos[0]});toast('Sepete eklendi.');const a=$('#add');a.textContent='Sepete Eklendi ✓ — Sepete Git';a.onclick=()=>location.href='sepet.html'};
+ $('#waq').onclick=()=>wa('Merhaba, fiyat almak istiyorum:\n'+cur.summary+'\nTahmini: '+money(cur.price));
+$('#spec').innerHTML=[['İskelet malzemesi',p.profile+' profil, elektrostatik toz boya + fırın'],['Taşıma kapasitesi',p.cap+' kg'],['Standart derinlik',p.depth+' cm'],['Sünger','28/32/35 DNS HR, 8–15 cm, alt destek katmanı'],['Garanti','İskelet 5 yıl · Döşeme 2 yıl'],['Teslimat','Demonte, montaj kılavuzlu (yekpare sevk talebe bağlı)'],['Kullanım',p.use.map(u=>USES[u]).join(', ')]].map(r=>`<tr><th>${r[0]}</th><td>${r[1]}</td></tr>`).join('');
+ $('#sim').innerHTML=PRODUCTS.filter(x=>x.id!==p.id).slice(0,4).map(x=>`<a class="card" href="urun.html?id=${x.id}"><div class="thumb" data-photo="urun-${x.id}">${sofaSVG(FRAMES[x.frame].c,FABRICS.find(f=>f[3]===x.fabric)[2],{wood:x.wood,l:x.l})}</div><div class="cap"><span>${x.name}</span></div></a>`).join('');
+});
+</script></body></html>

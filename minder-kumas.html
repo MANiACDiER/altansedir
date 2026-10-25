@@ -1,0 +1,30 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Minder & Kumaş — Altansedir</title><meta name="description" content="Sünger kaliteleri, kumaş türleri ve renk kartelası.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css"></head><body><div id="hdr"></div>
+<div class="pagehead"><div class="wrap"><div class="crumbs">Ana Sayfa / Minder & Kumaş</div><h1 style="font-size:clamp(40px,6vw,72px)">Minder & Kumaş</h1><p style="color:var(--mut);margin-top:12px;max-width:600px">Konforun ve ömrün belirleyicisi: sünger yoğunluğu, kalınlık ve doğru kumaş.</p></div></div>
+<section id="sunger"><div class="wrap"><span class="eyebrow">Sünger Kaliteleri & Katmanları</span><h2 style="margin-bottom:28px">Çökmeyen oturum</h2>
+<table><tr><th style="width:20%">Yoğunluk</th><th>Sertlik / his</th><th>Önerilen kullanım</th></tr>
+<tr><td>28 DNS</td><td>Yumuşak–orta</td><td>Hafif kullanım, misafir odası, balkon</td></tr>
+<tr><td>32 DNS HR</td><td>Orta, yüksek dayanım</td><td>Günlük kullanım, salon ve teras (önerilen)</td></tr>
+<tr><td>35 DNS HR</td><td>Sıkı, yüksek geri dönüşüm</td><td>Kafe, restoran, otel; yoğun kullanım</td></tr></table>
+<div class="grid g2" style="margin-top:34px"><div class="quote"><h3>Kalınlıklar</h3><p style="font-size:18px;font-family:Inter;margin-top:8px">8 cm (ince, minimal) · 10 cm (standart) · 12 cm (konforlu) · 15 cm (lüks oturum)</p></div><div class="quote"><h3>Alt destek katmanı</h3><p style="font-size:18px;font-family:Inter;margin-top:8px">Çökme önleyici keçe ve sert taban katmanı, sünger ile iskelet arasında yükü dağıtır ve minderin ortadan çökmesini önler.</p></div></div></div></section>
+
+<section id="kumas" style="background:var(--bg2)"><div class="wrap"><span class="eyebrow">Kumaş Türleri & Özellikleri</span><h2 style="margin-bottom:28px">Mekâna uygun kumaş</h2><div class="grid g4" id="ft"></div></div></section>
+
+<section id="kartela"><div class="wrap"><span class="eyebrow">Renk Kartelası & Sanal Numune</span><h2 style="margin-bottom:18px">Kumaş seç, numunen evine gelsin</h2>
+<div class="thumb land" data-photo="kartela" data-pos="50% 18%" style="aspect-ratio:21/8;margin-bottom:26px"></div><div class="opts" style="margin-bottom:22px" id="ff"></div><div class="swatches" id="sw"></div>
+<form class="cfg" style="margin-top:34px;max-width:720px" onsubmit="return sendForm(event,'Kumaş Numune Talebi')"><h3>Numune talep formu</h3><p class="note">En fazla 5 kumaş seçebilirsiniz. Ücretsiz gönderilir.</p><input type="hidden" name="Seçilen kumaşlar" id="sel"><div class="row2" style="margin-top:14px"><input name="Ad Soyad" placeholder="Ad Soyad" required><input name="Telefon" placeholder="Telefon" required></div><textarea name="Adres" placeholder="Teslimat adresi" style="margin-top:14px" required></textarea><p class="note" id="selt" style="margin:10px 0">Seçili: yok</p><button class="btn fill">Numune İste</button></form></div></section>
+<div id="ftr"></div><script src="assets/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+ const info={outdura:'Su geçirmez, dış mekân, kolay silinir.',kadife:'Yumuşak dokulu, iç mekân için, zengin renkler.',leke:'Silinebilir dokuma; kafe ve aile kullanımı için.',uv:'Güneşte solmaz; bahçe ve teras için.'};
+ $('#ft').innerHTML=Object.entries(FABRIC_TYPES).map(([k,v])=>`<div class="quote"><h3>${v.n}</h3><p style="font-family:Inter;font-size:14px;margin-top:10px">${info[k]}</p></div>`).join('');
+ let flt='all',sel=new Set();
+ $('#ff').innerHTML=`<button class="opt on" data-f="all">Tümü</button>`+Object.entries(FABRIC_TYPES).map(([k,v])=>`<button class="opt" data-f="${k}">${v.n}</button>`).join('');
+ function draw(){$('#sw').innerHTML=FABRICS.filter(f=>flt==='all'||f[3]===flt).map(f=>`<div class="swatch"><div class="chip" style="background:${f[2]}"></div><small>${f[0]} · ${f[1]}</small><label class="check"><input type="checkbox" value="${f[0]} ${f[1]}" ${sel.has(f[0]+' '+f[1])?'checked':''}> Numune</label></div>`).join('')}
+ $('#ff').onclick=e=>{const b=e.target.closest('[data-f]');if(!b)return;flt=b.dataset.f;$$('#ff .opt').forEach(x=>x.classList.toggle('on',x===b));draw()};
+ $('#sw').onchange=e=>{const t=e.target;if(t.checked){if(sel.size>=5){t.checked=false;toast('En fazla 5 numune seçilebilir.');return}sel.add(t.value)}else sel.delete(t.value);
+  $('#sel').value=[...sel].join(', ');$('#selt').textContent='Seçili: '+(sel.size?[...sel].join(', '):'yok')};
+ draw();});
+</script></body></html>

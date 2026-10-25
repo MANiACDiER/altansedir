@@ -1,0 +1,19 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hesabım — Altansedir</title><meta name="description" content="Hesap bilgileriniz ve siparişleriniz.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css"></head><body><div id="hdr"></div>
+<div class="pagehead"><div class="wrap"><div class="crumbs">Ana Sayfa / Hesabım</div><h1 style="font-size:clamp(40px,6vw,72px)">Hesabım</h1></div></div><section style="padding-top:30px"><div class="wrap"><div class="tabs"><button class="on" data-t="bilgi">Bilgilerim</button><button data-t="siparis">Siparişlerim</button><button data-t="sorgu">Sipariş Sorgula</button></div>
+<div><div class="pane on" id="bilgi"><form class="form cfg" id="af" style="max-width:720px"><p class="note">Bilgileriniz yalnızca bu cihazda (tarayıcınızda) saklanır; bir sonraki siparişte formu otomatik doldurur.</p><div class="row2"><div><label>Ad Soyad</label><input name="ad"></div><div><label>Telefon</label><input name="tel" type="tel"></div></div><label>E-posta</label><input name="mail" type="email"><div class="row2"><div><label>İl</label><input name="il"></div><div><label>İlçe</label><input name="ilce"></div></div><label>Adres</label><textarea name="adres"></textarea><p style="margin-top:18px"><button class="btn fill">Kaydet</button> <button type="button" class="btn" id="clr" style="margin-left:8px">Bilgilerimi Sil</button></p></form></div>
+<div class="pane" id="siparis"><div id="ol"></div></div>
+<div class="pane" id="sorgu"><form class="form cfg" id="qf" style="max-width:520px"><p class="note">Sipariş numaranızı (TS-123456) yazın, ekibimize WhatsApp ile iletelim.</p><label>Sipariş numarası</label><input name="no" required placeholder="TS-123456"><p style="margin-top:18px"><button class="btn wa">Durumu Sor</button></p></form></div></div></div></section>
+<div id="ftr"></div><script src="assets/app.js"></script><script>
+document.addEventListener('DOMContentLoaded',()=>{
+ const a=store.get('ts_account',{});const f=$('#af');for(const k in a){if(f.elements[k])f.elements[k].value=a[k]}
+ f.onsubmit=e=>{e.preventDefault();store.set('ts_account',Object.fromEntries(new FormData(f)));toast('Bilgileriniz kaydedildi.')};
+ $('#clr').onclick=()=>{store.set('ts_account',{});f.reset();toast('Bilgiler silindi.')};
+ const o=store.get('ts_orders',[]);
+ $('#ol').innerHTML=o.length?o.map(x=>`<div class="quote" style="margin-bottom:14px"><b>${x.no}</b> <span class="note">· ${x.date}</span><p style="font-size:16px;font-family:Inter;margin:8px 0">${x.items.map(i=>i.name+' ×'+i.qty).join(', ')}</p><b>${money(x.total)}</b> <span class="note">· ${x.odeme}</span><p style="margin-top:10px"><button class="btn" data-no="${x.no}" style="padding:8px 16px">Durumu Sor</button></p></div>`).join(''):'<p>Henüz siparişiniz yok. <a href="sedir-modelleri.html" style="text-decoration:underline">Modelleri keşfedin.</a></p>';
+ $('#ol').onclick=e=>{const b=e.target.closest('[data-no]');if(b)wa('Merhaba, '+b.dataset.no+' numaralı siparişimin durumunu öğrenmek istiyorum.')};
+ $('#qf').onsubmit=e=>{e.preventDefault();wa('Merhaba, '+e.target.no.value+' numaralı siparişimin durumunu öğrenmek istiyorum.')};
+});
+</script></body></html>

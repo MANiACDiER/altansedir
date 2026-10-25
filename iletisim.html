@@ -1,0 +1,23 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>İletişim — Altansedir</title><meta name="description" content="Adres, telefon, harita ve iletişim formu.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css"></head><body><div id="hdr"></div>
+<section class="chero"><div class="wrap"><span class="eyebrow" style="color:#cdbfa8">İletişim & Konum</span><h1 style="font-size:clamp(40px,6vw,76px)">Ölçünüzü yazın,<br>size dönelim.</h1><p>Fiyat, ölçü, kumaş ya da toptan sipariş. En hızlı yanıt WhatsApp üzerinden; hafta içi aynı gün dönüş yapıyoruz.</p></div></section>
+<div class="wrap"><div class="cards">
+<a class="ccard wa" href="#" onclick="wa('Merhaba, fiyat almak istiyorum.');return false"><div class="ic">✆</div><small>WhatsApp</small><b>0 534 088 39 48</b><span>Hızlı fiyat ve ölçü desteği</span></a>
+<a class="ccard" href="tel:+905340883948"><div class="ic">☎</div><small>Telefon</small><b>0 534 088 39 48</b><span>Pzt–Cmt 09:00–18:00</span></a>
+<a class="ccard" href="mailto:destek@altansedir.com"><div class="ic">✉</div><small>E-posta</small><b>destek@altansedir.com</b><span>Teklif ve kurumsal talepler</span></a>
+<div class="ccard"><div class="ic">⌖</div><small>Atölye & Showroom</small><b>Pendik, Kaynarca</b><span>Randevu ile ziyaret</span></div></div></div>
+
+<section><div class="wrap cform"><div><span class="eyebrow">Bize yazın</span><h2 style="margin-bottom:18px">Nasıl yardımcı olabiliriz?</h2><p style="color:var(--mut)">Formu doldurun, mesajınız WhatsApp üzerinden bize ulaşsın. Ölçü ve mekân fotoğrafı eklerseniz teklif daha hızlı hazırlanır.</p>
+<h3 style="margin:34px 0 8px;font-size:22px">Çalışma saatleri</h3><table class="hours"><tr><td>Pazartesi – Cuma</td><td>09:00 – 18:00</td></tr><tr><td>Cumartesi</td><td>09:00 – 16:00</td></tr><tr><td>Pazar</td><td>Kapalı (WhatsApp'tan yazabilirsiniz)</td></tr></table>
+<h3 style="margin:30px 0 4px;font-size:22px">Bizi takip edin</h3><div class="socbig" id="socbig"></div></div>
+<form class="cfg" onsubmit="return sendForm(event,'İletişim Formu')"><h3>İletişim formu</h3>
+<label>Konu</label><select name="Konu"><option>Fiyat teklifi</option><option>Özel ölçü sipariş</option><option>Kafe / otel / toptan</option><option>Kumaş numunesi</option><option>Sipariş takibi</option><option>Diğer</option></select>
+<div class="row2"><div><label>Ad Soyad</label><input name="Ad Soyad" required></div><div><label>Telefon</label><input name="Telefon" type="tel" required></div></div>
+<label>E-posta</label><input name="E-posta" type="email"><label>Şehir</label><input name="Şehir"><label>Mesajınız</label><textarea name="Mesaj" placeholder="Mekân, ölçü ve istediğiniz model hakkında kısaca yazın" required></textarea>
+<p style="margin-top:18px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn wa">WhatsApp ile Gönder</button><a class="btn" id="mailbtn" href="mailto:destek@altansedir.com">E-posta ile Yaz</a></p><p class="note" style="margin-top:12px">Bilgileriniz yalnızca teklif hazırlamak için kullanılır (KVKK).</p></form></div></section>
+
+<script>document.addEventListener('DOMContentLoaded',()=>{document.getElementById('socbig').innerHTML=Object.entries(SOCIAL).map(([k,u])=>`<a href="${u}" target="_blank" rel="noopener">${ico(k,18)} ${SOC_LABEL[k]}</a>`).join('')})</script>
+<div id="ftr"></div><script src="assets/app.js"></script>
+</body></html>

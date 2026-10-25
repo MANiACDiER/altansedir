@@ -1,0 +1,34 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sedir Modelleri — Altansedir</title><meta name="description" content="Balkon, bahçe, iç mekân ve ticari mekânlar için metal iskeletli sedir modelleri.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css"></head><body><div id="hdr"></div>
+<div class="pagehead"><div class="wrap"><div class="crumbs">Ana Sayfa / Sedir Modelleri</div><h1 style="font-size:clamp(40px,6vw,72px)" id="ttl">Sedir Modelleri</h1><p style="color:var(--mut);margin-top:12px;max-width:560px" id="sub">Kullanım alanına, iskelet tipine ve fiyata göre filtreleyin.</p></div></div>
+<section style="padding-top:40px"><div class="wrap"><button class="btn fbtn" id="fbtn">Filtrele</button><div class="catalog"><aside class="filters" id="flt"></aside>
+<div><div class="chips" id="chips"></div><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:10px"><span class="note" id="cnt"></span><select id="sort" style="width:auto"><option value="rec">Önerilen</option><option value="new">En yeni</option><option value="asc">Fiyat: Artan</option><option value="desc">Fiyat: Azalan</option><option value="az">Ada göre (A-Z)</option></select></div><div class="grid g3" id="list"></div></div></div></div></section>
+<div id="ftr"></div><script src="assets/app.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+ const q=new URLSearchParams(location.search);
+ const F={use:new Set(q.get('use')?[q.get('use')]:[]),type:new Set(q.get('type')?[q.get('type')]:[]),fab:new Set(),min:'',max:'',q:q.get('q')||''};
+ const norm=s=>s.toLocaleLowerCase('tr');
+ const start=p=>p.per*120;
+ const lo=Math.min(...PRODUCTS.map(start)),hi=Math.max(...PRODUCTS.map(start));
+ const grp=(t,k,o)=>`<h4>${t}</h4>`+Object.entries(o).map(([v,l])=>`<label class="check"><input type="checkbox" data-k="${k}" value="${v}" ${F[k].has(v)?'checked':''}> ${l} <span class="note">(${PRODUCTS.filter(p=>k==='use'?p.use.includes(v):k==='type'?p.type===v:p.fabric===v).length})</span></label>`).join('');
+ function side(){$('#flt').innerHTML=`<h4 style="margin-top:0">Ara</h4><input id="fq" placeholder="Model adı…" value="${F.q}">`+grp('Kullanım Alanı','use',USES)+grp('İskelet & Tasarım','type',TYPES)+grp('Kumaş Türü','fab',Object.fromEntries(Object.entries(FABRIC_TYPES).map(([k,v])=>[k,v.n])))+`<h4>Fiyat (TL'den)</h4><div class="prange"><input id="pmin" type="number" placeholder="${lo}" value="${F.min}"><input id="pmax" type="number" placeholder="${hi}" value="${F.max}"></div><p style="margin-top:18px"><button class="btn" id="clr" style="padding:10px 18px">Filtreleri temizle</button></p>`}
+ side();
+ function chips(){const c=[];F.use.forEach(v=>c.push(['use',v,USES[v]]));F.type.forEach(v=>c.push(['type',v,TYPES[v]]));F.fab.forEach(v=>c.push(['fab',v,FABRIC_TYPES[v].n]));if(F.q)c.push(['q','',`“${F.q}”`]);if(F.min)c.push(['min','','Min '+F.min+' TL']);if(F.max)c.push(['max','','Maks '+F.max+' TL']);
+  $('#chips').innerHTML=c.map(x=>`<button class="chip2" data-k="${x[0]}" data-v="${x[1]}">${x[2]} ✕</button>`).join('')}
+ function draw(){let l=PRODUCTS.filter(p=>(!F.use.size||p.use.some(u=>F.use.has(u)))&&(!F.type.size||F.type.has(p.type))&&(!F.fab.size||F.fab.has(p.fabric))&&(!F.q||norm(p.name+' '+p.use.map(u=>USES[u]).join(' ')+' '+TYPES[p.type]).includes(norm(F.q)))&&(!F.min||start(p)>=+F.min)&&(!F.max||start(p)<=+F.max));
+  const s=$('#sort').value;if(s==='asc')l.sort((a,b)=>a.per-b.per);if(s==='desc')l.sort((a,b)=>b.per-a.per);if(s==='az')l.sort((a,b)=>a.name.localeCompare(b.name,'tr'));if(s==='new')l.reverse();
+  $('#cnt').textContent=l.length+' model';chips();
+  const newIds=new Set(PRODUCTS.slice(-8).map(p=>p.id));
+  $('#list').innerHTML=l.map(p=>`<a class="card" href="urun.html?id=${p.id}"><div class="thumb" data-photo="urun-${p.id}" style="aspect-ratio:4/5">${newIds.has(p.id)?'<span class="badge">Yeni</span>':''}${sofaSVG(FRAMES[p.frame].c,FABRICS.find(f=>f[3]===p.fabric)[2],{wood:p.wood,l:p.l})}</div><div class="cap"><span>${p.name}</span><span>${money(start(p))}'den</span></div><p class="meta">${TYPES[p.type]} · ${p.use.map(u=>USES[u]).join(', ')}</p></a>`).join('')||'<p>Bu filtrelere uygun model yok. <a href="ozel-olcu.html" style="text-decoration:underline">Ücretsiz keşif talep edin.</a></p>';
+  if(newIds.size)hydrate($('#list'))}
+ $('#flt').addEventListener('change',e=>{const t=e.target;if(t.dataset.k){t.checked?F[t.dataset.k].add(t.value):F[t.dataset.k].delete(t.value);draw()}});
+ $('#flt').addEventListener('input',e=>{const t=e.target;if(t.id==='fq')F.q=t.value;if(t.id==='pmin')F.min=t.value;if(t.id==='pmax')F.max=t.value;if(['fq','pmin','pmax'].includes(t.id))draw()});
+ $('#flt').addEventListener('click',e=>{if(e.target.id==='clr'){F.use.clear();F.type.clear();F.fab.clear();F.min=F.max=F.q='';side();draw()}});
+ $('#chips').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const k=b.dataset.k;if(F[k] instanceof Set)F[k].delete(b.dataset.v);else F[k]='';side();draw()});
+ $('#sort').onchange=draw;$('#fbtn').onclick=()=>$('#flt').classList.toggle('open');
+ if(F.use.size)$('#ttl').textContent=USES[[...F.use][0]];if(F.type.size)$('#ttl').textContent=TYPES[[...F.type][0]];if(F.q)$('#ttl').textContent='“'+F.q+'” araması';
+ draw();});
+</script></body></html>
